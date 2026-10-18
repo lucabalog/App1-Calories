@@ -121,57 +121,189 @@ app.get('/api/product/:barcode', async (req: Request, res: Response) => {
 
 // Supermarket Product Name Search Proxy
 app.get('/api/search', async (req: Request, res: Response) => {
-  const query = req.query.q as string;
-  if (!query || query.trim().length < 2) {
+  const query = (req.query.q as string || '').trim().toLowerCase();
+  if (query.length < 2) {
     return res.status(400).json({ error: 'Search term must be at least 2 characters' });
   }
 
+  // Pre-seed search results from curated catalog if keyword matches
+  const localCatalog = [
+    {
+      barcode: '5201051000049',
+      name: 'Total 0% Greek Strained Yogurt',
+      brand: 'FAGE',
+      imageUrl: 'https://images.openfoodfacts.org/images/products/520/105/100/0049/front_en.11.400.jpg',
+      servingSize: '170g',
+      servingGrams: 170,
+      caloriesPer100g: 54,
+      proteinsPer100g: 10.3,
+      carbsPer100g: 3.0,
+      fatPer100g: 0.0,
+      sugarsPer100g: 3.0,
+      fiberPer100g: 0.0,
+      sodiumPer100g: 0.04,
+      saltPer100g: 0.1,
+      nutriscoreGrade: 'a',
+      novaGroup: 1,
+      ingredientsText: 'Pasteurized skimmed milk, live active yogurt cultures.',
+    },
+    {
+      barcode: '5000157024671',
+      name: 'Baked Beans in Rich Tomato Sauce',
+      brand: 'Heinz',
+      imageUrl: 'https://images.openfoodfacts.org/images/products/500/015/702/4671/front_en.111.400.jpg',
+      servingSize: '200g',
+      servingGrams: 200,
+      caloriesPer100g: 81,
+      proteinsPer100g: 4.7,
+      carbsPer100g: 12.5,
+      fatPer100g: 0.2,
+      sugarsPer100g: 4.7,
+      fiberPer100g: 3.7,
+      sodiumPer100g: 0.24,
+      saltPer100g: 0.6,
+      nutriscoreGrade: 'a',
+      novaGroup: 3,
+      ingredientsText: 'Beans (51%), Tomatoes (34%), Water, Sugar, Modified Cornflour, Salt.',
+    },
+    {
+      barcode: '7311070005743',
+      name: 'Oat Drink Barista Edition',
+      brand: 'Oatly',
+      imageUrl: 'https://images.openfoodfacts.org/images/products/731/107/000/5743/front_en.171.400.jpg',
+      servingSize: '200ml',
+      servingGrams: 200,
+      caloriesPer100g: 59,
+      proteinsPer100g: 1.1,
+      carbsPer100g: 6.6,
+      fatPer100g: 3.0,
+      sugarsPer100g: 4.0,
+      fiberPer100g: 0.8,
+      sodiumPer100g: 0.04,
+      saltPer100g: 0.1,
+      nutriscoreGrade: 'b',
+      novaGroup: 4,
+      ingredientsText: 'Oat base (water, oats 10%), rapeseed oil, calcium carbonate.',
+    },
+    {
+      barcode: '8076809513722',
+      name: 'Spaghetti Integrale 100% Whole Wheat',
+      brand: 'Barilla',
+      imageUrl: 'https://images.openfoodfacts.org/images/products/807/680/951/3722/front_en.44.400.jpg',
+      servingSize: '85g',
+      servingGrams: 85,
+      caloriesPer100g: 350,
+      proteinsPer100g: 13.0,
+      carbsPer100g: 65.0,
+      fatPer100g: 2.5,
+      sugarsPer100g: 3.5,
+      fiberPer100g: 8.0,
+      sodiumPer100g: 0.005,
+      saltPer100g: 0.013,
+      nutriscoreGrade: 'a',
+      novaGroup: 1,
+      ingredientsText: 'Whole durum wheat semolina, water.',
+    },
+    {
+      barcode: '3017620422003',
+      name: 'Nutella Hazelnut Spread with Cocoa',
+      brand: 'Ferrero',
+      imageUrl: 'https://images.openfoodfacts.org/images/products/301/762/042/2003/front_en.471.400.jpg',
+      servingSize: '15g',
+      servingGrams: 15,
+      caloriesPer100g: 539,
+      proteinsPer100g: 6.3,
+      carbsPer100g: 57.5,
+      fatPer100g: 30.9,
+      sugarsPer100g: 56.3,
+      fiberPer100g: 3.0,
+      sodiumPer100g: 0.043,
+      saltPer100g: 0.107,
+      nutriscoreGrade: 'e',
+      novaGroup: 4,
+      ingredientsText: 'Sugar, palm oil, hazelnuts (13%), skimmed milk powder (8.7%).',
+    },
+    {
+      barcode: '5000169116777',
+      name: '100% Wholegrain Rolled Oats',
+      brand: 'Quaker Oats',
+      imageUrl: 'https://images.openfoodfacts.org/images/products/500/016/911/6777/front_en.70.400.jpg',
+      servingSize: '40g',
+      servingGrams: 40,
+      caloriesPer100g: 374,
+      proteinsPer100g: 11.0,
+      carbsPer100g: 60.0,
+      fatPer100g: 8.0,
+      sugarsPer100g: 1.1,
+      fiberPer100g: 9.0,
+      sodiumPer100g: 0.004,
+      saltPer100g: 0.01,
+      nutriscoreGrade: 'a',
+      novaGroup: 1,
+      ingredientsText: '100% Wholegrain Rolled Oats.',
+    },
+  ];
+
+  const localMatches = localCatalog.filter(
+    (item) => item.name.toLowerCase().includes(query) || item.brand.toLowerCase().includes(query)
+  );
+
   try {
-    const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=8`;
+    const searchUrl = `https://world.openfoodfacts.net/api/v2/search?search_terms=${encodeURIComponent(query)}&page_size=8`;
     const response = await fetch(searchUrl, {
       headers: {
-        'User-Agent': 'NutriScan - AI Studio Build - Version 1.0',
+        'User-Agent': 'NutriScan - AI Studio Build - Version 1.0 (blueblag123@gmail.com)',
         'Accept': 'application/json',
       },
     });
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: 'Search failed' });
+    if (response.ok) {
+      const data = await response.json();
+      const remoteProducts = (data.products || []).map((p: any) => {
+        const n = p.nutriments || {};
+        let calories = n['energy-kcal_100g'] ?? (n['energy_100g'] ? Math.round(n['energy_100g'] / 4.184) : 0);
+        const nutriscoreGrade = p.nutriscore_grade ? String(p.nutriscore_grade).toLowerCase() : undefined;
+        const novaGroup = p.nova_group ? Number(p.nova_group) : undefined;
+
+        return {
+          barcode: p.code || p.id || '',
+          name: p.product_name || p.product_name_en || 'Supermarket Item',
+          brand: p.brands || '',
+          imageUrl: p.image_front_small_url || p.image_front_url || '',
+          servingSize: p.serving_size || '100g',
+          servingGrams: 100,
+          caloriesPer100g: Math.round(Number(calories) || 0),
+          proteinsPer100g: Number((Number(n.proteins_100g ?? 0)).toFixed(1)),
+          carbsPer100g: Number((Number(n.carbohydrates_100g ?? 0)).toFixed(1)),
+          fatPer100g: Number((Number(n.fat_100g ?? 0)).toFixed(1)),
+          sugarsPer100g: Number((Number(n.sugars_100g ?? 0)).toFixed(1)),
+          fiberPer100g: Number((Number(n.fiber_100g ?? 0)).toFixed(1)),
+          sodiumPer100g: Number((Number(n.sodium_100g ?? 0)).toFixed(2)),
+          saltPer100g: Number((Number(n.salt_100g ?? 0)).toFixed(2)),
+          nutriscoreGrade: ['a', 'b', 'c', 'd', 'e'].includes(nutriscoreGrade as string) ? nutriscoreGrade : undefined,
+          novaGroup: [1, 2, 3, 4].includes(novaGroup as number) ? novaGroup : undefined,
+          ingredientsText: p.ingredients_text || '',
+        };
+      }).filter((p: any) => p.name && p.barcode);
+
+      // Merge local matches with remote products, avoiding barcode duplicates
+      const seen = new Set<string>();
+      const combined = [];
+      for (const p of [...localMatches, ...remoteProducts]) {
+        if (!seen.has(p.barcode)) {
+          seen.add(p.barcode);
+          combined.push(p);
+        }
+      }
+
+      return res.json({ products: combined });
     }
-
-    const data = await response.json();
-    const products = (data.products || []).map((p: any) => {
-      const n = p.nutriments || {};
-      let calories = n['energy-kcal_100g'] ?? (n['energy_100g'] ? Math.round(n['energy_100g'] / 4.184) : 0);
-      const nutriscoreGrade = p.nutriscore_grade ? String(p.nutriscore_grade).toLowerCase() : undefined;
-      const novaGroup = p.nova_group ? Number(p.nova_group) : undefined;
-
-      return {
-        barcode: p.code || p.id || '',
-        name: p.product_name || p.product_name_en || 'Supermarket Item',
-        brand: p.brands || '',
-        imageUrl: p.image_front_small_url || p.image_front_url || '',
-        servingSize: p.serving_size || '100g',
-        servingGrams: 100,
-        caloriesPer100g: Math.round(Number(calories) || 0),
-        proteinsPer100g: Number((Number(n.proteins_100g ?? 0)).toFixed(1)),
-        carbsPer100g: Number((Number(n.carbohydrates_100g ?? 0)).toFixed(1)),
-        fatPer100g: Number((Number(n.fat_100g ?? 0)).toFixed(1)),
-        sugarsPer100g: Number((Number(n.sugars_100g ?? 0)).toFixed(1)),
-        fiberPer100g: Number((Number(n.fiber_100g ?? 0)).toFixed(1)),
-        sodiumPer100g: Number((Number(n.sodium_100g ?? 0)).toFixed(2)),
-        saltPer100g: Number((Number(n.salt_100g ?? 0)).toFixed(2)),
-        nutriscoreGrade: ['a', 'b', 'c', 'd', 'e'].includes(nutriscoreGrade as string) ? nutriscoreGrade : undefined,
-        novaGroup: [1, 2, 3, 4].includes(novaGroup as number) ? novaGroup : undefined,
-        ingredientsText: p.ingredients_text || '',
-      };
-    }).filter((p: any) => p.name && p.barcode);
-
-    return res.json({ products });
   } catch (err: any) {
-    console.error('Search error:', err);
-    return res.status(500).json({ error: 'Search failed', details: err.message });
+    console.warn('Remote search warning, falling back to local catalog:', err.message);
   }
+
+  // Graceful fallback to local matches
+  return res.json({ products: localMatches });
 });
 
 // AI Label / Packaging Photo Analysis (Gemini 3.8 Flash)
