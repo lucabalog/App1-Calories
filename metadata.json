@@ -1,0 +1,10 @@
+{
+  "name": "NutriScan - Supermarket Barcode Nutrition Monitor",
+  "description": "Scan supermarket barcodes and food labels with your camera or photo upload to monitor calories, macros, Nutri-Score, and Nova processing grades in a daily meal diary.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
