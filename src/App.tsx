@@ -7,6 +7,7 @@ import { ScannerModal } from './components/ScannerModal';
 import { ScanHistoryView } from './components/ScanHistoryView';
 import { GoalsModal } from './components/GoalsModal';
 import { InsightsView } from './components/InsightsView';
+import { MiniSplashScreen } from './components/MiniSplashScreen';
 import {
   ProductNutrition,
   MealLogEntry,
@@ -102,6 +103,7 @@ function generateInitialEntries(): MealLogEntry[] {
 }
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [currentTab, setCurrentTab] = useState<'diary' | 'insights' | 'history' | 'goals'>('diary');
   const [selectedDate, setSelectedDate] = useState<string>(formatISODate(new Date()));
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -223,7 +225,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased pb-20 md:pb-10">
-      {/* Top Bar adhering to Top Bar Contract */}
+      {/* Mini loading splash screen when app is starting */}
+      {showSplash && (
+        <MiniSplashScreen onFinish={() => setShowSplash(false)} durationMs={1200} />
+      )}
+
+      {/* Top Bar adhering to Top Bar Contract (hidden on mobile) */}
       <TopBar
         currentTab={currentTab}
         onSelectTab={(tab) => {
